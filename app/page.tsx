@@ -1,11 +1,41 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { PlaySquare, Music, Mail, MessageCircle } from 'lucide-react';
+import { PlaySquare, Music, Mail, MessageCircle, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 
-function CanvasRain() {
+function CanvasRain({ isMuted }: { isMuted: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isMutedRef = useRef(isMuted);
+  const rainAudioRef = useRef<HTMLAudioElement | null>(null);
+  const thunderAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  useEffect(() => {
+    rainAudioRef.current = new Audio('/rain.ogg');
+    rainAudioRef.current.loop = true;
+    rainAudioRef.current.volume = 0.15;
+
+    thunderAudioRef.current = new Audio('/thunder.ogg');
+    thunderAudioRef.current.volume = 0.3;
+
+    return () => {
+      rainAudioRef.current?.pause();
+      thunderAudioRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMuted) {
+      rainAudioRef.current?.play().catch(() => {});
+    } else {
+      rainAudioRef.current?.pause();
+    }
+  }, [isMuted]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -28,7 +58,7 @@ function CanvasRain() {
 
     const raindrops: any[] = [];
     const lightnings: any[] = [];
-    const numDrops = window.innerWidth < 768 ? 60 : 250; // Less rain on mobile
+    const numDrops = window.innerWidth < 768 ? 100 : 400; // Increased for wider spawn area
 
     let currentWind = 1.5;
     let targetWind = 1.5;
@@ -74,11 +104,38 @@ function CanvasRain() {
     // Initialize raindrops
     for (let i = 0; i < numDrops; i++) {
       raindrops.push({
-        x: Math.random() * width,
+        x: Math.random() * (width + 800) - 400, // Spawn widely to account for wind
         y: Math.random() * height - height,
         l: Math.random() * 30 + 20, // length
         xs: Math.random() * 1, // base horizontal speed
         ys: Math.random() * 15 + 20 // vertical speed
+      });
+    }
+
+    // Initialize clouds
+    const clouds: any[] = [];
+    const numClouds = window.innerWidth < 768 ? 12 : 25;
+    for (let i = 0; i < numClouds; i++) {
+      const puffs = [];
+      const numPuffs = Math.floor(Math.random() * 5) + 4; // 4 to 8 puffs per cloud
+      for (let j = 0; j < numPuffs; j++) {
+        puffs.push({
+          offsetX: (Math.random() - 0.5) * 250, // horizontal spread
+          offsetY: (Math.random() - 0.5) * 80,  // vertical spread
+          radius: Math.random() * 100 + 80,     // puff size
+          phase: Math.random() * Math.PI * 2,   // animation phase
+          speed: Math.random() * 0.001 + 0.0005 // animation speed
+        });
+      }
+
+      clouds.push({
+        x: Math.random() * width,
+        y: Math.random() * 100 - 50, // Top area
+        vx: (Math.random() - 0.5) * 0.3, // Base speed
+        opacity: Math.random() * 0.3 + 0.15, // 0.15 to 0.45
+        colorOffset: Math.random() * 15 - 5, // Slight color variation
+        scale: Math.random() * 0.5 + 0.8,
+        puffs: puffs
       });
     }
 
@@ -95,6 +152,60 @@ function CanvasRain() {
         windChangeTimer = 0;
       }
       currentWind += (targetWind - currentWind) * 0.01;
+
+      // Calculate max lightning alpha for cloud illumination
+      let maxLightningAlpha = 0;
+      for (let i = 0; i < lightnings.length; i++) {
+        const l = lightnings[i];
+        const alpha = 1 - (l.life / l.maxLife);
+        if (alpha > maxLightningAlpha) maxLightningAlpha = Math.max(0, alpha);
+      }
+
+      const time = Date.now();
+
+      // Draw clouds
+      for (let i = 0; i < clouds.length; i++) {
+        const c = clouds[i];
+        c.x += c.vx + (currentWind * 0.1); // Wind effect
+        
+        // Wrap around
+        if (c.x - 300 > width) c.x = -300;
+        if (c.x + 300 < 0) c.x = width + 300;
+
+        // Calculate color based on lightning
+        const baseR = 12 + c.colorOffset;
+        const baseG = 14 + c.colorOffset;
+        const baseB = 20 + c.colorOffset;
+        
+        const flashR = 210;
+        const flashG = 220;
+        const flashB = 240;
+
+        const r = Math.floor(baseR + (flashR - baseR) * maxLightningAlpha);
+        const g = Math.floor(baseG + (flashG - baseG) * maxLightningAlpha);
+        const b = Math.floor(baseB + (flashB - baseB) * maxLightningAlpha);
+
+        for (let j = 0; j < c.puffs.length; j++) {
+          const puff = c.puffs[j];
+          // Morphing animation
+          const animY = Math.sin(time * puff.speed + puff.phase) * 15;
+          const animX = Math.cos(time * puff.speed + puff.phase) * 10;
+          
+          const px = c.x + puff.offsetX * c.scale + animX;
+          const py = c.y + puff.offsetY * c.scale + animY;
+          const pr = puff.radius * c.scale;
+
+          const gradient = ctx.createRadialGradient(px, py, 0, px, py, pr);
+          gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${c.opacity})`);
+          gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${c.opacity * 0.7})`);
+          gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(px, py, pr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
 
       // Draw raindrops
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
@@ -114,9 +225,9 @@ function CanvasRain() {
         p.x += totalXs;
         p.y += p.ys;
 
-        if (p.y > height) {
-          // Reset drop if it goes off screen
-          p.x = Math.random() * width - (currentWind * 50); // Offset for wind
+        if (p.y > height || p.x > width + 400 || p.x < -400) {
+          // Reset drop if it goes off screen vertically or too far horizontally
+          p.x = Math.random() * (width + 800) - 400;
           p.y = -50;
         }
       }
@@ -125,15 +236,24 @@ function CanvasRain() {
       // Randomly spawn lightning
       if (Math.random() < 0.003) {
         lightnings.push(createLightning());
+        if (!isMutedRef.current && thunderAudioRef.current) {
+          const thunderClone = thunderAudioRef.current.cloneNode() as HTMLAudioElement;
+          thunderClone.volume = Math.random() * 0.2 + 0.1;
+          thunderClone.play().catch(() => {});
+        }
         if (Math.random() < 0.5) {
           setTimeout(() => {
             lightnings.push(createLightning());
+            if (!isMutedRef.current && thunderAudioRef.current) {
+              const thunderClone = thunderAudioRef.current.cloneNode() as HTMLAudioElement;
+              thunderClone.volume = Math.random() * 0.2 + 0.1;
+              thunderClone.play().catch(() => {});
+            }
           }, Math.random() * 100 + 50);
         }
       }
 
       // Draw lightnings
-      let maxLightningAlpha = 0;
       for (let i = lightnings.length - 1; i >= 0; i--) {
         const l = lightnings[i];
         
@@ -200,6 +320,8 @@ function CanvasRain() {
 }
 
 export default function PersonalPage() {
+  const [isMuted, setIsMuted] = useState(true);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -222,8 +344,24 @@ export default function PersonalPage() {
 
   return (
     <main className="min-h-screen flex flex-col justify-between p-8 md:p-16 lg:p-24 font-sans relative overflow-hidden bg-black">
+      {/* Background Image of Big Ben from a bridge with blue tone */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <Image
+          src="/big-ben.jpg"
+          alt="Big Ben from Westminster Bridge"
+          fill
+          className="object-cover opacity-60"
+          referrerPolicy="no-referrer"
+          priority
+        />
+        {/* Blue tone overlays */}
+        <div className="absolute inset-0 bg-blue-950/50 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-slate-900/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
+      </div>
+
       {/* Continuous Realistic Rain Effect with Physics */}
-      <CanvasRain />
+      <CanvasRain isMuted={isMuted} />
 
       {/* Subtle background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-neutral-900/30 blur-[120px] rounded-full pointer-events-none" />
@@ -238,6 +376,13 @@ export default function PersonalPage() {
         <div className="font-mono text-xs tracking-widest text-neutral-500 uppercase">
           // 已经阵亡
         </div>
+        <button
+          onClick={() => setIsMuted(!isMuted)}
+          className="text-neutral-500 hover:text-white transition-colors duration-300 p-2 rounded-full bg-neutral-900/40 border border-neutral-800/60 backdrop-blur-md"
+          aria-label="Toggle sound"
+        >
+          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+        </button>
       </motion.header>
 
       {/* Main Content */}
