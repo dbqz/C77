@@ -1,12 +1,19 @@
 'use client';
 
 import { motion, useMotionValue, useSpring, AnimatePresence } from 'motion/react';
-import { PlaySquare, Music, Mail, MessageCircle, CloudRain, Snowflake, Leaf } from 'lucide-react';
+import { PlaySquare, Music, Mail, MessageCircle, CloudRain, Snowflake, Leaf, Sun, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
-type Theme = 'rain' | 'snow' | 'autumn';
+type Theme = 'rain' | 'snow' | 'autumn' | 'summer';
+
+const themeMusic = {
+  rain: 'https://music.163.com/song/media/outer/url?id=436667409.mp3',
+  snow: 'https://music.163.com/song/media/outer/url?id=2139196813.mp3',
+  autumn: 'https://music.163.com/song/media/outer/url?id=28912659.mp3',
+  summer: 'https://music.163.com/song/media/outer/url?id=3947467.mp3'
+};
 
 function CanvasWeather({ theme }: { theme: Theme }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,12 +47,14 @@ function CanvasWeather({ theme }: { theme: Theme }) {
     const giantSnowflakes: any[] = [];
     const leaves: any[] = [];
     const giantLeaves: any[] = [];
+    const fireflies: any[] = [];
     const lightnings: any[] = [];
     const clouds: any[] = [];
 
     const numDrops = window.innerWidth < 768 ? 100 : 400;
     const numSnowflakes = window.innerWidth < 768 ? 50 : 200;
     const numLeaves = window.innerWidth < 768 ? 20 : 60;
+    const numFireflies = window.innerWidth < 768 ? 30 : 80;
     const numClouds = window.innerWidth < 768 ? 12 : 25;
 
     let currentWind = 1.5;
@@ -121,6 +130,19 @@ function CanvasWeather({ theme }: { theme: Theme }) {
         angle: Math.random() * Math.PI * 2,
         spin: (Math.random() - 0.5) * 0.1,
         color: colors[Math.floor(Math.random() * colors.length)]
+      };
+    }
+
+    function createFirefly() {
+      return {
+        x: Math.random() * width,
+        y: Math.random() * height,
+        size: Math.random() * 1.5 + 1,
+        xs: (Math.random() - 0.5) * 0.5,
+        ys: (Math.random() - 0.5) * 0.5,
+        life: Math.random() * Math.PI * 2,
+        maxLife: Math.random() * 0.02 + 0.01,
+        offset: Math.random() * 100
       };
     }
 
@@ -244,6 +266,8 @@ function CanvasWeather({ theme }: { theme: Theme }) {
           baseR = 20 + c.colorOffset; baseG = 24 + c.colorOffset; baseB = 30 + c.colorOffset;
         } else if (currentTheme === 'autumn') {
           baseR = 25 + c.colorOffset; baseG = 18 + c.colorOffset; baseB = 12 + c.colorOffset;
+        } else if (currentTheme === 'summer') {
+          baseR = 10 + c.colorOffset; baseG = 16 + c.colorOffset; baseB = 12 + c.colorOffset;
         }
         
         const flashR = 210, flashG = 220, flashB = 240;
@@ -493,6 +517,38 @@ function CanvasWeather({ theme }: { theme: Theme }) {
         }
       }
 
+      // --- SUMMER FIREFLIES ---
+      if (currentTheme === 'summer' && fireflies.length < numFireflies) {
+        fireflies.push(createFirefly());
+      }
+      for (let i = fireflies.length - 1; i >= 0; i--) {
+        const p = fireflies[i];
+        p.x += p.xs + Math.sin(p.offset) * 0.5;
+        p.y += p.ys + Math.cos(p.offset) * 0.5;
+        p.offset += 0.01;
+        p.life += p.maxLife;
+
+        if (p.x < -50) p.x = width + 50;
+        if (p.x > width + 50) p.x = -50;
+        if (p.y < -50) p.y = height + 50;
+        if (p.y > height + 50) p.y = -50;
+
+        if (currentTheme !== 'summer') {
+          fireflies.splice(i, 1);
+          continue;
+        }
+
+        const opacity = (Math.sin(p.life) + 1) / 2 * 0.8 + 0.2; // 0.2 to 1.0
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 255, 100, ${opacity})`;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = `rgba(200, 255, 100, ${opacity * 0.8})`;
+        ctx.fill();
+        ctx.shadowBlur = 0; // reset
+      }
+
       animationFrameId = requestAnimationFrame(draw);
     };
 
@@ -517,6 +573,8 @@ export default function PersonalPage() {
   const [hoverState, setHoverState] = useState<'default' | 'clickable' | 'text'>('default');
   const [transitionState, setTransitionState] = useState<'idle' | 'expanding'>('idle');
   const [clickPos, setClickPos] = useState({ x: 0, y: 0 });
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const mouseX = useMotionValue(-1000);
   const mouseY = useMotionValue(-1000);
@@ -556,6 +614,33 @@ export default function PersonalPage() {
     };
   }, [mouseX, mouseY]);
 
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.src = themeMusic[theme];
+      if (isMusicPlaying) {
+        audioRef.current.play().catch(e => {
+          console.log("Autoplay prevented", e);
+          setIsMusicPlaying(false);
+        });
+      }
+    }
+  }, [theme, isMusicPlaying]);
+
+  const toggleMusic = () => {
+    if (audioRef.current) {
+      if (isMusicPlaying) {
+        audioRef.current.pause();
+        setIsMusicPlaying(false);
+      } else {
+        audioRef.current.play().then(() => {
+          setIsMusicPlaying(true);
+        }).catch(e => {
+          console.log("Play prevented", e);
+        });
+      }
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -579,23 +664,28 @@ export default function PersonalPage() {
   const themeBg = {
     rain: 'bg-[#080c13]',
     snow: 'bg-[#0b1320]',
-    autumn: 'bg-[#170b05]'
+    autumn: 'bg-[#170b05]',
+    summer: 'bg-[#0a110a]'
   };
 
   const themeGlow = {
     rain: 'bg-[#1e3a5f]/30',
     snow: 'bg-[#3b82f6]/20',
-    autumn: 'bg-[#d97736]/20'
+    autumn: 'bg-[#d97736]/20',
+    summer: 'bg-[#84cc16]/20'
   };
 
   const spotlightColor = {
     rain: 'rgba(30, 58, 95, 0.15)',
     snow: 'rgba(59, 130, 246, 0.15)',
-    autumn: 'rgba(217, 119, 54, 0.15)'
+    autumn: 'rgba(217, 119, 54, 0.15)',
+    summer: 'rgba(132, 204, 22, 0.15)'
   };
 
   return (
     <main className={`min-h-screen flex flex-col justify-between p-8 md:p-16 lg:p-24 font-sans relative overflow-hidden transition-colors duration-[2500ms] ease-in-out md:cursor-none md:[&_*]:cursor-none ${themeBg[theme]}`}>
+      <audio ref={audioRef} loop />
+      
       {/* Mouse Spotlight */}
       <motion.div
         className="fixed top-0 left-0 w-[800px] h-[800px] rounded-full pointer-events-none z-0 hidden md:block"
@@ -671,27 +761,49 @@ export default function PersonalPage() {
         </div>
         
         {/* Theme Switcher */}
-        <div className="flex gap-2 bg-neutral-900/40 border border-neutral-800/60 backdrop-blur-md rounded-full p-1">
+        <div className="flex gap-2 bg-neutral-900/60 border border-neutral-700/50 backdrop-blur-md rounded-full p-1.5 shadow-lg">
           <button
             onClick={() => setTheme('rain')}
-            className={`p-2 rounded-full transition-all duration-300 ${theme === 'rain' ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'}`}
+            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'rain' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
             aria-label="Rain mode"
+            title="雨天模式"
           >
-            <CloudRain size={16} />
+            <CloudRain size={20} />
           </button>
           <button
             onClick={() => setTheme('snow')}
-            className={`p-2 rounded-full transition-all duration-300 ${theme === 'snow' ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'}`}
+            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'snow' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
             aria-label="Snow mode"
+            title="下雪模式"
           >
-            <Snowflake size={16} />
+            <Snowflake size={20} />
           </button>
           <button
             onClick={() => setTheme('autumn')}
-            className={`p-2 rounded-full transition-all duration-300 ${theme === 'autumn' ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'}`}
+            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'autumn' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
             aria-label="Autumn mode"
+            title="秋叶模式"
           >
-            <Leaf size={16} />
+            <Leaf size={20} />
+          </button>
+          <button
+            onClick={() => setTheme('summer')}
+            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'summer' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+            aria-label="Summer mode"
+            title="夏夜模式"
+          >
+            <Sun size={20} />
+          </button>
+          
+          <div className="w-px h-6 bg-neutral-700/50 mx-1 self-center" />
+          
+          <button
+            onClick={toggleMusic}
+            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${isMusicPlaying ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+            aria-label="Toggle music"
+            title={isMusicPlaying ? "暂停音乐" : "播放音乐"}
+          >
+            {isMusicPlaying ? <Volume2 size={20} /> : <VolumeX size={20} />}
           </button>
         </div>
       </motion.header>
