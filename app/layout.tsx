@@ -15,6 +15,9 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'C77',
   description: 'C77的个人网站',
+  other: {
+    'msvalidate.01': 'B798D25221F6E39B771435BC41B4DC2D',
+  },
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
