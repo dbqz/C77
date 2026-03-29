@@ -1,18 +1,18 @@
 'use client';
 
 import { motion, useMotionValue, useSpring, AnimatePresence } from 'motion/react';
-import { PlaySquare, Music, Mail, MessageCircle, CloudRain, Snowflake, Leaf, Sun, Volume2, VolumeX } from 'lucide-react';
+import { PlaySquare, Music, Mail, MessageCircle, CloudRain, Snowflake, Leaf, Volume2, VolumeX, Sparkles, Menu, X } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
-type Theme = 'rain' | 'snow' | 'autumn' | 'summer';
+type Theme = 'rain' | 'snow' | 'autumn' | 'fireworks';
 
 const themeMusic = {
   rain: 'https://music.163.com/song/media/outer/url?id=436667409.mp3',
   snow: 'https://music.163.com/song/media/outer/url?id=2139196813.mp3',
   autumn: 'https://music.163.com/song/media/outer/url?id=28912659.mp3',
-  summer: 'https://music.163.com/song/media/outer/url?id=3947467.mp3'
+  fireworks: 'https://music.163.com/song/media/outer/url?id=3353184295.mp3'
 };
 
 function CanvasWeather({ theme }: { theme: Theme }) {
@@ -47,19 +47,20 @@ function CanvasWeather({ theme }: { theme: Theme }) {
     const giantSnowflakes: any[] = [];
     const leaves: any[] = [];
     const giantLeaves: any[] = [];
-    const fireflies: any[] = [];
     const lightnings: any[] = [];
-    const clouds: any[] = [];
+    const fireworksList: any[] = [];
+    const fireworkParticles: any[] = [];
 
     const numDrops = window.innerWidth < 768 ? 100 : 400;
     const numSnowflakes = window.innerWidth < 768 ? 50 : 200;
     const numLeaves = window.innerWidth < 768 ? 20 : 60;
-    const numFireflies = window.innerWidth < 768 ? 30 : 80;
-    const numClouds = window.innerWidth < 768 ? 12 : 25;
 
     let currentWind = 1.5;
     let targetWind = 1.5;
     let windChangeTimer = 0;
+    let loveSalvoTimer = 0;
+    let salvoSequenceIndex = 0;
+    const salvoSequences = [['L', 'O', 'V', 'E'], ['我', '爱', '你']];
 
     function createLightning() {
       const startX = Math.random() * width;
@@ -133,17 +134,158 @@ function CanvasWeather({ theme }: { theme: Theme }) {
       };
     }
 
-    function createFirefly() {
+    function createFirework() {
+      const startX = Math.random() * (width * 0.8) + width * 0.1;
+      const startY = height;
+      const targetX = startX + (Math.random() - 0.5) * 300;
+      const targetY = Math.random() * (height * 0.4) + height * 0.1;
+
+      const angle = Math.atan2(targetY - startY, targetX - startX);
+      const speed = Math.random() * 2 + 4;
+
+      const coords = [];
+      for (let i = 0; i < 3; i++) coords.push({ x: startX, y: startY });
+
       return {
-        x: Math.random() * width,
-        y: Math.random() * height,
-        size: Math.random() * 1.5 + 1,
-        xs: (Math.random() - 0.5) * 0.5,
-        ys: (Math.random() - 0.5) * 0.5,
-        life: Math.random() * Math.PI * 2,
-        maxLife: Math.random() * 0.02 + 0.01,
-        offset: Math.random() * 100
+        startX,
+        startY,
+        x: startX,
+        y: startY,
+        tx: targetX,
+        ty: targetY,
+        distanceToTarget: Math.hypot(targetX - startX, targetY - startY),
+        distanceTraveled: 0,
+        coordinates: coords,
+        angle,
+        speed,
+        acceleration: 1.02,
+        brightness: Math.random() * 20 + 50,
+        hue: Math.random() * 360,
       };
+    }
+
+    function createFireworkParticles(x: number, y: number, baseHue: number) {
+      const particleCount = Math.random() * 80 + 120;
+      const particles: any[] = [];
+      const isMultiColor = Math.random() < 0.2;
+      for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 12 + 2;
+        const coords = [];
+        for (let j = 0; j < 5; j++) coords.push({ x, y });
+
+        particles.push({
+          x,
+          y,
+          coordinates: coords,
+          angle,
+          speed,
+          friction: 0.95,
+          gravity: 0.15,
+          hue: isMultiColor ? Math.random() * 360 : baseHue + (Math.random() * 40 - 20),
+          brightness: Math.random() * 30 + 50,
+          alpha: 1,
+          decay: Math.random() * 0.015 + 0.01,
+        });
+      }
+      return particles;
+    }
+
+    function launchTextFireworks(letters: string[]) {
+      const spacing = width / (letters.length + 1);
+      const startY = height;
+      const targetY = height * 0.25;
+      const hues = [340, 350, 0, 10, 330, 320]; // Pink/Red/Purple hues
+
+      letters.forEach((letter, index) => {
+        const targetX = spacing * (index + 1);
+        const startX = targetX + (Math.random() - 0.5) * 50;
+
+        const angle = Math.atan2(targetY - startY, targetX - startX);
+        const speed = Math.random() * 1 + 6;
+
+        const coords = [];
+        for (let i = 0; i < 3; i++) coords.push({ x: startX, y: startY });
+
+        fireworksList.push({
+          startX, startY,
+          x: startX, y: startY,
+          tx: targetX, ty: targetY,
+          distanceToTarget: Math.hypot(targetX - startX, targetY - startY),
+          distanceTraveled: 0,
+          coordinates: coords,
+          angle,
+          speed,
+          acceleration: 1.01,
+          brightness: 80,
+          hue: hues[index % hues.length],
+          letter: letter
+        });
+      });
+    }
+
+    function createLetterParticles(x: number, y: number, baseHue: number, letter: string) {
+      const particles: any[] = [];
+      const isChinese = letter.charCodeAt(0) > 255;
+      // Increase scale significantly for Chinese characters to make them larger
+      const scale = (window.innerWidth < 768 ? 3 : 4.5) * (isChinese ? 1.8 : 1);
+
+      // Use an offscreen canvas to render the text and extract pixel data
+      // Increased canvas size for better resolution of complex Chinese characters
+      const tc = document.createElement('canvas');
+      tc.width = 100;
+      tc.height = 100;
+      const tctx = tc.getContext('2d', { willReadFrequently: true });
+      if (!tctx) return particles;
+
+      tctx.font = 'bold 75px sans-serif';
+      tctx.textAlign = 'center';
+      tctx.textBaseline = 'middle';
+      tctx.fillStyle = 'white';
+      tctx.fillText(letter, 50, 50);
+
+      const data = tctx.getImageData(0, 0, 100, 100).data;
+      
+      // Slightly higher particle density for Chinese characters to keep strokes clear when scaled up
+      const particleProb = isChinese ? 0.8 : 0.6;
+
+      for (let py = 0; py < 100; py += 2) {
+        for (let px = 0; px < 100; px += 2) {
+          const alpha = data[(py * 100 + px) * 4 + 3];
+          // Only create a particle if the pixel is opaque enough, with some randomness
+          if (alpha > 128 && Math.random() < particleProb) {
+            let vx = (px - 50) * 0.05;
+            let vy = (py - 50) * 0.05;
+
+            // Add slight randomness to make it look like a real firework
+            vx += (Math.random() - 0.5) * 0.1;
+            vy += (Math.random() - 0.5) * 0.1;
+
+            vx *= scale;
+            vy *= scale;
+
+            const angle = Math.atan2(vy, vx);
+            const speed = Math.hypot(vx, vy);
+
+            const coords = [];
+            for (let j = 0; j < 5; j++) coords.push({ x, y });
+
+            particles.push({
+              x, y,
+              coordinates: coords,
+              angle,
+              speed,
+              friction: 0.92, // Higher friction so the letter holds its shape
+              gravity: 0.02,  // Low gravity so it floats
+              hue: baseHue + (Math.random() * 20 - 10),
+              brightness: Math.random() * 20 + 80,
+              alpha: 1,
+              decay: Math.random() * 0.015 + 0.005,
+            });
+          }
+        }
+      }
+      return particles;
     }
 
     function createGiantSnowflake() {
@@ -174,30 +316,6 @@ function CanvasWeather({ theme }: { theme: Theme }) {
         opacity: 0.7,
         color: colors[Math.floor(Math.random() * colors.length)]
       };
-    }
-
-    // Initialize clouds
-    for (let i = 0; i < numClouds; i++) {
-      const puffs = [];
-      const numPuffs = Math.floor(Math.random() * 5) + 4;
-      for (let j = 0; j < numPuffs; j++) {
-        puffs.push({
-          offsetX: (Math.random() - 0.5) * 250,
-          offsetY: (Math.random() - 0.5) * 80,
-          radius: Math.random() * 100 + 80,
-          phase: Math.random() * Math.PI * 2,
-          speed: Math.random() * 0.001 + 0.0005
-        });
-      }
-      clouds.push({
-        x: Math.random() * width,
-        y: Math.random() * 100 - 50,
-        vx: (Math.random() - 0.5) * 0.3,
-        opacity: Math.random() * 0.3 + 0.15,
-        colorOffset: Math.random() * 15 - 5,
-        scale: Math.random() * 0.5 + 0.8,
-        puffs: puffs
-      });
     }
 
     // Pre-fill particles for the initial theme
@@ -244,57 +362,12 @@ function CanvasWeather({ theme }: { theme: Theme }) {
         lastGiantSpawnTime = time;
       }
 
-      // Calculate max lightning alpha for cloud illumination
+      // Calculate max lightning alpha for cloud illumination (kept for potential future use or general ambient flash)
       let maxLightningAlpha = 0;
       for (let i = 0; i < lightnings.length; i++) {
         const l = lightnings[i];
         const alpha = 1 - (l.life / l.maxLife);
         if (alpha > maxLightningAlpha) maxLightningAlpha = Math.max(0, alpha);
-      }
-
-      // Draw clouds (visible in all themes, but maybe adjust color)
-      for (let i = 0; i < clouds.length; i++) {
-        const c = clouds[i];
-        c.x += c.vx + (currentWind * 0.1);
-        
-        if (c.x - 300 > width) c.x = -300;
-        if (c.x + 300 < 0) c.x = width + 300;
-
-        // Base colors depend on theme
-        let baseR = 12 + c.colorOffset, baseG = 14 + c.colorOffset, baseB = 20 + c.colorOffset;
-        if (currentTheme === 'snow') {
-          baseR = 20 + c.colorOffset; baseG = 24 + c.colorOffset; baseB = 30 + c.colorOffset;
-        } else if (currentTheme === 'autumn') {
-          baseR = 25 + c.colorOffset; baseG = 18 + c.colorOffset; baseB = 12 + c.colorOffset;
-        } else if (currentTheme === 'summer') {
-          baseR = 10 + c.colorOffset; baseG = 16 + c.colorOffset; baseB = 12 + c.colorOffset;
-        }
-        
-        const flashR = 210, flashG = 220, flashB = 240;
-
-        const r = Math.floor(baseR + (flashR - baseR) * maxLightningAlpha);
-        const g = Math.floor(baseG + (flashG - baseG) * maxLightningAlpha);
-        const b = Math.floor(baseB + (flashB - baseB) * maxLightningAlpha);
-
-        for (let j = 0; j < c.puffs.length; j++) {
-          const puff = c.puffs[j];
-          const animY = Math.sin(time * puff.speed + puff.phase) * 15;
-          const animX = Math.cos(time * puff.speed + puff.phase) * 10;
-          
-          const px = c.x + puff.offsetX * c.scale + animX;
-          const py = c.y + puff.offsetY * c.scale + animY;
-          const pr = puff.radius * c.scale;
-
-          const gradient = ctx.createRadialGradient(px, py, 0, px, py, pr);
-          gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${c.opacity})`);
-          gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${c.opacity * 0.7})`);
-          gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(px, py, pr, 0, Math.PI * 2);
-          ctx.fill();
-        }
       }
 
       // Spawn lightning only in rain
@@ -517,37 +590,73 @@ function CanvasWeather({ theme }: { theme: Theme }) {
         }
       }
 
-      // --- SUMMER FIREFLIES ---
-      if (currentTheme === 'summer' && fireflies.length < numFireflies) {
-        fireflies.push(createFirefly());
-      }
-      for (let i = fireflies.length - 1; i >= 0; i--) {
-        const p = fireflies[i];
-        p.x += p.xs + Math.sin(p.offset) * 0.5;
-        p.y += p.ys + Math.cos(p.offset) * 0.5;
-        p.offset += 0.01;
-        p.life += p.maxLife;
-
-        if (p.x < -50) p.x = width + 50;
-        if (p.x > width + 50) p.x = -50;
-        if (p.y < -50) p.y = height + 50;
-        if (p.y > height + 50) p.y = -50;
-
-        if (currentTheme !== 'summer') {
-          fireflies.splice(i, 1);
-          continue;
+      // --- FIREWORKS ---
+      if (currentTheme === 'fireworks') {
+        loveSalvoTimer++;
+        if (loveSalvoTimer > 500) { // About 8 seconds
+          launchTextFireworks(salvoSequences[salvoSequenceIndex]);
+          salvoSequenceIndex = (salvoSequenceIndex + 1) % salvoSequences.length;
+          loveSalvoTimer = 0;
+        } else if (Math.random() < 0.03 && fireworksList.length < 5 && loveSalvoTimer < 400) {
+          fireworksList.push(createFirework());
         }
-
-        const opacity = (Math.sin(p.life) + 1) / 2 * 0.8 + 0.2; // 0.2 to 1.0
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(200, 255, 100, ${opacity})`;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = `rgba(200, 255, 100, ${opacity * 0.8})`;
-        ctx.fill();
-        ctx.shadowBlur = 0; // reset
+      } else {
+        loveSalvoTimer = 0;
       }
+
+      for (let i = fireworksList.length - 1; i >= 0; i--) {
+        const f = fireworksList[i];
+        f.coordinates.pop();
+        f.coordinates.unshift({ x: f.x, y: f.y });
+
+        f.speed *= f.acceleration;
+        const vx = Math.cos(f.angle) * f.speed;
+        const vy = Math.sin(f.angle) * f.speed;
+        f.distanceTraveled = Math.hypot(f.x + vx - f.startX, f.y + vy - f.startY);
+
+        if (f.distanceTraveled >= f.distanceToTarget) {
+          if (f.letter) {
+            fireworkParticles.push(...createLetterParticles(f.tx, f.ty, f.hue, f.letter));
+          } else {
+            fireworkParticles.push(...createFireworkParticles(f.tx, f.ty, f.hue));
+          }
+          fireworksList.splice(i, 1);
+        } else {
+          f.x += vx;
+          f.y += vy;
+
+          ctx.beginPath();
+          ctx.moveTo(f.coordinates[f.coordinates.length - 1].x, f.coordinates[f.coordinates.length - 1].y);
+          ctx.lineTo(f.x, f.y);
+          ctx.strokeStyle = `hsl(${f.hue}, 100%, ${f.brightness}%)`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+
+      ctx.globalCompositeOperation = 'screen';
+      for (let i = fireworkParticles.length - 1; i >= 0; i--) {
+        const p = fireworkParticles[i];
+        p.coordinates.pop();
+        p.coordinates.unshift({ x: p.x, y: p.y });
+
+        p.speed *= p.friction;
+        p.x += Math.cos(p.angle) * p.speed;
+        p.y += Math.sin(p.angle) * p.speed + p.gravity;
+        p.alpha -= p.decay;
+
+        if (p.alpha <= p.decay) {
+          fireworkParticles.splice(i, 1);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(p.coordinates[p.coordinates.length - 1].x, p.coordinates[p.coordinates.length - 1].y);
+          ctx.lineTo(p.x, p.y);
+          ctx.strokeStyle = `hsla(${p.hue}, 100%, ${p.brightness}%, ${p.alpha})`;
+          ctx.lineWidth = Math.random() < 0.2 ? 2 : 1;
+          ctx.stroke();
+        }
+      }
+      ctx.globalCompositeOperation = 'source-over';
 
       animationFrameId = requestAnimationFrame(draw);
     };
@@ -574,6 +683,7 @@ export default function PersonalPage() {
   const [transitionState, setTransitionState] = useState<'idle' | 'expanding'>('idle');
   const [clickPos, setClickPos] = useState({ x: 0, y: 0 });
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const mouseX = useMotionValue(-1000);
@@ -665,25 +775,25 @@ export default function PersonalPage() {
     rain: 'bg-[#080c13]',
     snow: 'bg-[#0b1320]',
     autumn: 'bg-[#170b05]',
-    summer: 'bg-[#0a110a]'
+    fireworks: 'bg-[#020202]'
   };
 
   const themeGlow = {
     rain: 'bg-[#1e3a5f]/30',
     snow: 'bg-[#3b82f6]/20',
     autumn: 'bg-[#d97736]/20',
-    summer: 'bg-[#84cc16]/20'
+    fireworks: 'bg-[#ff0055]/10'
   };
 
   const spotlightColor = {
     rain: 'rgba(30, 58, 95, 0.15)',
     snow: 'rgba(59, 130, 246, 0.15)',
     autumn: 'rgba(217, 119, 54, 0.15)',
-    summer: 'rgba(132, 204, 22, 0.15)'
+    fireworks: 'rgba(255, 100, 150, 0.1)'
   };
 
   return (
-    <main className={`min-h-screen flex flex-col justify-between p-8 md:p-16 lg:p-24 font-sans relative overflow-hidden transition-colors duration-[2500ms] ease-in-out md:cursor-none md:[&_*]:cursor-none ${themeBg[theme]}`}>
+    <main className={`min-h-screen flex flex-col justify-between p-6 md:p-16 lg:p-24 font-sans relative overflow-hidden transition-colors duration-[2500ms] ease-in-out md:cursor-none md:[&_*]:cursor-none ${themeBg[theme]}`}>
       <audio ref={audioRef} loop />
       
       {/* Mouse Spotlight */}
@@ -754,58 +864,121 @@ export default function PersonalPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="flex justify-between items-center z-10 relative"
+        className="flex justify-end z-10 relative w-full"
       >
-        <div className="font-mono text-xs tracking-widest text-neutral-500 uppercase">
-          {`// 已经阵亡`}
-        </div>
-        
-        {/* Theme Switcher */}
-        <div className="flex gap-2 bg-neutral-900/60 border border-neutral-700/50 backdrop-blur-md rounded-full p-1.5 shadow-lg">
+        {/* Desktop Theme Switcher */}
+        <div className="hidden md:flex w-auto justify-end gap-1 bg-neutral-900/40 border border-neutral-700/30 backdrop-blur-md rounded-full p-1.5 shadow-md">
           <button
             onClick={() => setTheme('rain')}
-            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'rain' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+            className={`px-4 py-2 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'rain' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
             aria-label="Rain mode"
             title="雨天模式"
           >
-            <CloudRain size={20} />
+            <CloudRain size={16} />
           </button>
           <button
             onClick={() => setTheme('snow')}
-            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'snow' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+            className={`px-4 py-2 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'snow' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
             aria-label="Snow mode"
             title="下雪模式"
           >
-            <Snowflake size={20} />
+            <Snowflake size={16} />
           </button>
           <button
             onClick={() => setTheme('autumn')}
-            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'autumn' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+            className={`px-4 py-2 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'autumn' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
             aria-label="Autumn mode"
             title="秋叶模式"
           >
-            <Leaf size={20} />
+            <Leaf size={16} />
           </button>
           <button
-            onClick={() => setTheme('summer')}
-            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'summer' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
-            aria-label="Summer mode"
-            title="夏夜模式"
+            onClick={() => setTheme('fireworks')}
+            className={`px-4 py-2 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'fireworks' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+            aria-label="Fireworks mode"
+            title="烟花模式"
           >
-            <Sun size={20} />
+            <Sparkles size={16} />
           </button>
           
-          <div className="w-px h-6 bg-neutral-700/50 mx-1 self-center" />
+          <div className="w-px h-5 bg-neutral-700/50 mx-1 self-center" />
           
           <button
             onClick={toggleMusic}
-            className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${isMusicPlaying ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+            className={`px-4 py-2 rounded-full transition-all duration-300 flex items-center justify-center ${isMusicPlaying ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
             aria-label="Toggle music"
             title={isMusicPlaying ? "暂停音乐" : "播放音乐"}
           >
-            {isMusicPlaying ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            {isMusicPlaying ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
         </div>
+
+        {/* Mobile Horizontal Retractable Menu */}
+        <motion.div
+          layout
+          className="md:hidden flex items-center bg-neutral-900/40 border border-neutral-700/30 backdrop-blur-md rounded-full p-1.5 shadow-md"
+        >
+          <AnimatePresence initial={false}>
+            {isMenuOpen && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 'auto', opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="flex items-center gap-1 overflow-hidden whitespace-nowrap pr-1"
+              >
+                <button
+                  onClick={() => { setTheme('rain'); setIsMenuOpen(false); }}
+                  className={`p-2 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'rain' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+                  aria-label="Rain mode"
+                >
+                  <CloudRain size={18} />
+                </button>
+                <button
+                  onClick={() => { setTheme('snow'); setIsMenuOpen(false); }}
+                  className={`p-2 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'snow' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+                  aria-label="Snow mode"
+                >
+                  <Snowflake size={18} />
+                </button>
+                <button
+                  onClick={() => { setTheme('autumn'); setIsMenuOpen(false); }}
+                  className={`p-2 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'autumn' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+                  aria-label="Autumn mode"
+                >
+                  <Leaf size={18} />
+                </button>
+                <button
+                  onClick={() => { setTheme('fireworks'); setIsMenuOpen(false); }}
+                  className={`p-2 rounded-full transition-all duration-300 flex items-center justify-center ${theme === 'fireworks' ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+                  aria-label="Fireworks mode"
+                >
+                  <Sparkles size={18} />
+                </button>
+                
+                <div className="w-px h-4 bg-neutral-700/50 mx-1" />
+                
+                <button
+                  onClick={() => { toggleMusic(); setIsMenuOpen(false); }}
+                  className={`p-2 rounded-full transition-all duration-300 flex items-center justify-center ${isMusicPlaying ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}
+                  aria-label="Toggle music"
+                >
+                  {isMusicPlaying ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`p-2 rounded-full flex items-center justify-center transition-all duration-300 z-10 shrink-0 ${isMenuOpen ? 'bg-white/20 text-white shadow-sm' : 'text-neutral-300 hover:text-white hover:bg-white/10'}`}
+            aria-label="Toggle menu"
+          >
+            <motion.div animate={{ rotate: isMenuOpen ? 90 : 0 }} transition={{ duration: 0.2 }}>
+              {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            </motion.div>
+          </button>
+        </motion.div>
       </motion.header>
 
       {/* Main Content */}
@@ -813,12 +986,12 @@ export default function PersonalPage() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="flex flex-col max-w-3xl z-10 relative mt-20 md:mt-0"
+        className="flex flex-col max-w-3xl z-10 relative mt-12 md:mt-0"
       >
         <motion.h1
           id="title-c77"
           variants={itemVariants}
-          className="text-5xl md:text-9xl font-bold tracking-tighter text-white mb-6 w-fit relative z-20"
+          className="text-6xl md:text-9xl font-bold tracking-tighter text-white mb-6 w-fit relative z-20"
         >
           C77<span 
                className="text-neutral-600 secret-dot cursor-pointer transition-colors hover:text-white"
@@ -856,14 +1029,11 @@ export default function PersonalPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.5, duration: 1 }}
-        className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 z-10 relative text-neutral-600 font-mono text-xs uppercase tracking-wider mt-20 md:mt-0"
+        className="flex justify-center md:justify-start items-center md:items-end gap-6 md:gap-4 z-10 relative text-neutral-600 font-mono text-xs uppercase tracking-wider mt-16 md:mt-0 w-full"
       >
-        <div>
+        <div className="text-center md:text-left">
           <p>常驻外太空</p>
           <p className="mt-1">© {new Date().getFullYear()} C77</p>
-        </div>
-        <div className="text-right">
-          <p>自由中</p>
         </div>
       </motion.footer>
     </main>

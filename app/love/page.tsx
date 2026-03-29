@@ -179,9 +179,9 @@ export default function LovePage() {
               className="absolute inset-0 flex flex-col items-center justify-center"
             >
               <div className="flex flex-col items-center max-w-2xl text-center px-6 pointer-events-auto">
-                <div className="min-h-[200px] flex items-center justify-center mb-16">
+                <div className="min-h-[150px] md:min-h-[200px] flex items-center justify-center mb-16">
                   <motion.h1 
-                    className="text-xl md:text-3xl font-light tracking-[0.2em] leading-[2.5] whitespace-pre-line text-neutral-800"
+                    className="text-lg md:text-3xl font-light tracking-[0.2em] leading-[2.5] whitespace-pre-line text-neutral-800"
                     animate={{ opacity: isFadingOut ? 0 : 1 }}
                     transition={{ duration: 0.8 }}
                   >
@@ -221,10 +221,10 @@ export default function LovePage() {
               className="absolute inset-0 flex flex-col items-center justify-center"
             >
               <div className="text-white max-w-2xl text-center px-6 pointer-events-auto flex flex-col items-center">
-                <h2 className="text-2xl md:text-4xl font-light tracking-widest mb-12 leading-relaxed text-white/90">
+                <h2 className="text-xl md:text-4xl font-light tracking-widest mb-8 md:mb-12 leading-relaxed text-white/90">
                   "在无尽的暗夜里，<br/>你是我唯一的星光。"
                 </h2>
-                <p className="text-neutral-400 leading-[2.5] tracking-widest font-light text-sm md:text-base">
+                <p className="text-neutral-400 leading-[2.2] md:leading-[2.5] tracking-widest font-light text-xs md:text-base">
                   时间或许会冲淡许多记忆，<br/>
                   但那些关于你的瞬间，<br/>
                   却在岁月的沉淀中愈发清晰。
@@ -238,10 +238,10 @@ export default function LovePage() {
               className="absolute inset-0 flex flex-col items-center justify-center"
             >
               <div className="text-white max-w-2xl text-center px-6 pointer-events-auto flex flex-col items-center">
-                <h2 className="text-2xl md:text-4xl font-light tracking-widest mb-12 leading-relaxed text-white/90">
+                <h2 className="text-xl md:text-4xl font-light tracking-widest mb-8 md:mb-12 leading-relaxed text-white/90">
                   "我曾跨越千山万水，<br/>只为寻找心停靠的港湾。"
                 </h2>
-                <p className="text-neutral-400 leading-[2.5] tracking-widest font-light text-sm md:text-base">
+                <p className="text-neutral-400 leading-[2.2] md:leading-[2.5] tracking-widest font-light text-xs md:text-base">
                   直到遇见你，<br/>
                   我才知道，<br/>
                   原来所有的跋涉，都是为了这一刻的相逢。
@@ -255,10 +255,10 @@ export default function LovePage() {
               className="absolute inset-0 flex flex-col items-center justify-center"
             >
               <div className="text-white max-w-2xl text-center px-6 pointer-events-auto flex flex-col items-center">
-                <h2 className="text-2xl md:text-4xl font-light tracking-widest mb-12 leading-relaxed text-white/90">
+                <h2 className="text-xl md:text-4xl font-light tracking-widest mb-8 md:mb-12 leading-relaxed text-white/90">
                   "世界喧嚣，人潮拥挤，<br/>而你，是我心底最温柔的静谧。"
                 </h2>
-                <p className="text-neutral-400 leading-[2.5] tracking-widest mb-16 font-light text-sm md:text-base">
+                <p className="text-neutral-400 leading-[2.2] md:leading-[2.5] tracking-widest mb-12 md:mb-16 font-light text-xs md:text-base">
                   愿岁月的长河里，<br/>
                   始终有你，<br/>
                   也始终有我。
