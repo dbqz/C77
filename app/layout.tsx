@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'C77',
-  description: 'Personal page of C77',
+  description: 'C77的个人网站',
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
